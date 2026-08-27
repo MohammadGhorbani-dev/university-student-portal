@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdminOrStaff() {
+      return isAuthenticated() && 
+      exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff'
+      );
+    }
+    
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdminOrStaff();
+      
+      allow create: if isAdminOrStaff() || (
+        isOwner(userId) && (
+          request.resource.data.role == 'student' ||
+          (request.resource.data.role == 'admin' && request.auth.token.email == 'admin@uni.ac.ir') ||
+          (request.resource.data.role == 'staff' && request.auth.token.email == 'staff@uni.ac.ir')
+        )
+      );
+      
+      allow update: if isAdminOrStaff() || (
+        isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['role', 'studentId', 'nationalCode', 'gpa', 'creditsPassed', 'passedCredits', 'major', 'faculty', 'entranceYear', 'entryYear', 'status', 'advisor'])
+      );
+      
+      allow delete: if isAdminOrStaff();
+    }
+    
+    match /announcements/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrStaff();
+    }
+    
+    match /courses/{courseId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdminOrStaff();
+      
+      allow update: if isAdminOrStaff() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enrolledCount']) &&
+        (
+          request.resource.data.enrolledCount == resource.data.enrolledCount + 1 ||
+          request.resource.data.enrolledCount == resource.data.enrolledCount - 1 ||
+          request.resource.data.enrolledCount == resource.data.enrolledCount
+        )
+      );
+    }
+    
+    match /course_selections/{selectionId} {
+      allow read: if isAdminOrStaff() || (isAuthenticated() && (resource == null || resource.data.studentUid == request.auth.uid));
+      
+      allow create: if isAdminOrStaff() || (
+        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+      );
+      
+      allow update: if isAdminOrStaff() || (
+        isAuthenticated() && resource.data.studentUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'dropped'
+      );
+      
+      allow delete: if isAdminOrStaff();
+    }
+    
+    match /reservation_slots/{slotId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdminOrStaff();
+      
+      allow update: if isAdminOrStaff() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedCount']) &&
+        (
+          request.resource.data.reservedCount == resource.data.reservedCount + 1 ||
+          request.resource.data.reservedCount == resource.data.reservedCount - 1 ||
+          request.resource.data.reservedCount == resource.data.reservedCount
+        )
+      );
+    }
+    
+    match /student_reservations/{resId} {
+      allow read: if isAdminOrStaff() || (isAuthenticated() && (resource == null || resource.data.studentUid == request.auth.uid));
+      
+      allow create: if isAdminOrStaff() || (
+        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+      );
+      
+      allow update: if isAdminOrStaff() || (
+        isAuthenticated() && resource.data.studentUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'cancelled'
+      );
+      
+      allow delete: if isAdminOrStaff();
+    }
+
+    match /requests/{reqId} {
+      allow read: if isAdminOrStaff() || (isAuthenticated() && resource.data.studentUid == request.auth.uid);
+      allow create: if isAdminOrStaff() || (
+        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+      );
+      // Students shouldn't edit their requests after submission, admins can update status
+      allow update: if isAdminOrStaff();
+      allow delete: if isAdminOrStaff();
+    }
+
+    match /support_tickets/{ticketId} {
+      allow read: if isAdminOrStaff() || (isAuthenticated() && resource.data.studentUid == request.auth.uid);
+      allow create: if isAdminOrStaff() || (
+        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
+      );
+      allow update: if isAdminOrStaff();
+      allow delete: if isAdminOrStaff();
+      
+      match /messages/{messageId} {
+        allow read: if isAdminOrStaff() || (
+          isAuthenticated() && get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.studentUid == request.auth.uid
+        );
+        allow create: if isAdminOrStaff() || (
+          isAuthenticated() && 
+          get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.studentUid == request.auth.uid &&
+          request.resource.data.senderUid == request.auth.uid
+        );
+      }
+    }
+  }
+}
