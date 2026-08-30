@@ -2,9 +2,19 @@
 
 > A modern, responsive university student portal built with React, Vite, Tailwind CSS, and Firebase.
 
+🌐 Accessing the Live Demo
+
+Important for users in Iran: Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
+
+If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
+
 ## 🌐 Live Demo
 
 **https://university-portal-demo.web.app**
+
+> **Important for users in Iran:** Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
+>
+> If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
 
 ## 📋 Overview
 
