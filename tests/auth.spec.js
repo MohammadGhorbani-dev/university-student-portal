@@ -42,7 +42,7 @@ test.describe('Authentication and Routing', () => {
     await page.fill('input[name="confirmPassword"]', 'password456');
     await page.click('button[type="submit"]');
     
-    await expect(page.locator('text=تکرار رمز عبور با رمز عبور یکسان نیست.')).toBeVisible();
+    await expect(page.locator('text=رمز عبور و تکرار آن مطابقت ندارند.')).toBeVisible();
   });
 
   test('Navigates between auth pages correctly', async ({ page }) => {

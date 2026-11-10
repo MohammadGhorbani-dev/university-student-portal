@@ -4,6 +4,7 @@ import { auth, db, isConfigured } from '../firebase/config';
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { normalizeProfile } from '../utils/profile';
 
 const AuthContext = createContext();
 
@@ -24,7 +25,7 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const register = async (email, password, studentData, secretCode = '') => {
+  const register = async (email, password, studentData) => {
     if (!isConfigured) {
       toast.error('Firebase is not configured. Check .env variables.');
       return Promise.reject(new Error('Firebase not configured'));
@@ -32,19 +33,18 @@ export const AuthProvider = ({ children }) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
-    let role = 'student';
-    if (secretCode === 'ADMIN_SECRET') {
-      role = 'admin';
-    } else if (secretCode === 'STAFF_SECRET') {
-      role = 'staff';
-    }
-
     try {
       // Create user document in Firestore
       await setDoc(doc(db, 'users', user.uid), {
-        ...studentData,
+        firstName: studentData.firstName,
+        lastName: studentData.lastName,
+        studentId: studentData.studentId,
+        nationalCode: studentData.nationalCode,
+        phone: '', address: '', avatar: '', faculty: '', major: '',
+        entryYear: '', semester: '', advisor: '', status: '',
+        gpa: 0, creditsPassed: 0, enrollmentVersion: 1,
         email,
-        role: role,
+        role: 'student',
         createdAt: serverTimestamp()
       });
     } catch (error) {
@@ -82,12 +82,16 @@ export const AuthProvider = ({ children }) => {
     let unsubscribeDoc = null;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (unsubscribeDoc) unsubscribeDoc();
+      unsubscribeDoc = null;
+      setUserData(null);
+      setLoading(true);
       setCurrentUser(user);
       if (user) {
         const docRef = doc(db, 'users', user.uid);
         unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
-            setUserData(docSnap.data());
+            setUserData(normalizeProfile(docSnap.data()));
           }
           setLoading(false);
         }, (error) => {

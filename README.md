@@ -60,7 +60,6 @@ This project was developed as a portfolio/academic project with an emphasis on:
 * Reservation management
 * Request management
 * Support management
-* User management
 * Administrative statistics
 * Shared responsive interface with role-aware navigation
 
@@ -105,7 +104,7 @@ Key security measures include:
 ### Testing & Tooling
 
 * Playwright
-* ESLint
+* TypeScript configuration check (`tsc --noEmit`; JavaScript `checkJs` is not enabled)
 * Vite production build
 
 ## 🎨 UI & UX

@@ -15,7 +15,6 @@ export default function Register() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showSecretCode, setShowSecretCode] = useState(false);
 
   const password = watch('password');
 
@@ -24,7 +23,7 @@ export default function Register() {
       const studentData = {
         firstName: data.firstName.trim(),
         lastName: data.lastName.trim(),
-        studentNumber: data.studentId.trim(),
+        studentId: data.studentId.trim(),
         nationalCode: data.nationalId?.trim() || '',
         phone: '',
         address: '',
@@ -38,7 +37,7 @@ export default function Register() {
         creditsPassed: 0,
         status: ''
       };
-      await register(data.email.trim(), data.password, studentData, data.secretCode?.trim());
+      await register(data.email.trim(), data.password, studentData);
       toast.success('ثبت‌نام با موفقیت انجام شد');
       navigate('/');
     } catch (error) {
@@ -192,28 +191,6 @@ export default function Register() {
               {errors.confirmPassword && <p className="text-rose-500 text-xs font-bold mt-2">{errors.confirmPassword.message}</p>}
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                کد محرمانه مدیریت/کارمند (اختیاری)
-              </label>
-              <div className="relative">
-              <input
-                type={showSecretCode ? 'text' : 'password'}
-                dir="ltr"
-                placeholder="جهت ثبت‌نام با دسترسی ویژه"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm placeholder:text-slate-400 pr-10"
-                {...registerForm('secretCode')}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
-                onClick={() => setShowSecretCode(!showSecretCode)}
-                aria-label={showSecretCode ? 'مخفی کردن کد محرمانه' : 'نمایش کد محرمانه'}
-              >
-                {showSecretCode ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
-              </button>
-            </div>
-            </div>
           </div>
 
           <button

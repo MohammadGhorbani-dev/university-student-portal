@@ -10,6 +10,7 @@ import { formatSafely } from '../utils/dateUtils';
 import Skeleton from '../components/ui/Skeleton';
 import { withRetry } from '../utils/errorHandler';
 import { getWeeklyMessage } from '../utils/weeklyMessage';
+import { getCurrentSemester } from '../utils/semesterUtils';
 
 export default function Dashboard() {
   const { userData, currentUser } = useAuth();
@@ -68,10 +69,11 @@ export default function Dashboard() {
     loadDashboardData();
   }, [currentUser, userData]);
 
-  const currentCredits = myCourses.reduce((sum, c) => sum + (c.credits || 0), 0);
+  const currentSemester = getCurrentSemester();
+  const currentCredits = myCourses.filter(c => c.semester === currentSemester).reduce((sum, c) => sum + (c.credits || 0), 0);
   
   // Try to match today's date format (YYYY-MM-DD from input type="date")
-  const todayIso = new Date().toISOString().split('T')[0];
+  const todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const todaysReservationsCount = myReservations.filter(r => r.date === todayIso && r.status === 'active').length;
 
   let stats = [];
@@ -86,7 +88,7 @@ export default function Dashboard() {
     stats = [
       { label: 'تعداد کل دروس', value: loadingData ? '-' : adminStats?.coursesCount || 0, icon: <FiBookOpen />, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-100 dark:border-emerald-900/50' },
       { label: 'درخواست‌های در انتظار', value: loadingData ? '-' : adminStats?.pendingRequestsCount || 0, icon: <FiFileText />, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-100 dark:border-amber-900/50' },
-      { label: 'ظرفیت رزرو امروز', value: loadingData ? '-' : adminStats?.reservationsCount || 0, icon: <FiCalendar />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/30', border: 'border-indigo-100 dark:border-indigo-900/50' },
+      { label: 'امکانات رزرو فعال', value: loadingData ? '-' : adminStats?.activeReservationsCount || 0, icon: <FiCalendar />, color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/30', border: 'border-indigo-100 dark:border-indigo-900/50' },
       { label: 'تیکت‌های آموزشی باز', value: loadingData ? '-' : adminStats?.openTicketsCount || 0, icon: <FiAlertTriangle />, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30', border: 'border-rose-100 dark:border-rose-900/50' },
     ];
   } else {
