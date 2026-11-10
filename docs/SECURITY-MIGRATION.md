@@ -79,6 +79,22 @@ Historical cancelled records retain their snapshots when an empty parent is dele
 
 ## Validation and limits
 
+Dependency repairs retain Firebase 12.17.1 and the Vite 6 major version. Vite is
+updated to 6.4.6; patched nanoid, source-map-js and re2js are recorded in the lock.
+An explicit scoped override pins Firestore's Node-only gRPC dependency to 1.14.7
+because its upstream dependency pinned an older version. Emulator integration tests
+exercise that Node path. Review/remove the override when upstream adopts a patched
+version. `npm audit fix --force` is not used; its suggested Firebase downgrade is
+inappropriate for this application. The workflow checks known high advisories in
+the project's installed dependency graph. A zero audit count is not proof of
+application security and does not cover the separate firebase-tools CLI graph.
+
+Relevant upstream advisories:
+
+- https://github.com/advisories/GHSA-m9gg-hp2v-232j
+- https://github.com/advisories/GHSA-9jrq-w75r-8gcw
+- https://github.com/advisories/GHSA-gg6h-894w-4m9c
+
 The GitHub workflow uses a `demo-` project ID, local emulator address and synthetic
 data only. It exercises both accepted workflows and direct malicious writes, plus
 concurrent capacity and credit-limit requests. Emulator testing does not validate

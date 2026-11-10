@@ -200,8 +200,8 @@ export default function Profile() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit for base64
-        toast.error('حجم عکس باید کمتر از ۱ مگابایت باشد');
+      if (file.size > 512 * 1024) { // Keep the base64 document below Firestore's 1 MiB limit.
+        toast.error('حجم عکس باید کمتر از ۵۱۲ کیلوبایت باشد');
         return;
       }
       const reader = new FileReader();

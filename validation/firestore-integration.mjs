@@ -179,6 +179,25 @@ try {
     await denied(() => updateDoc(doc(db, 'users/legacy-student'), { enrollmentVersion: 1 }));
   });
 
+  await check('direct atomic enrollment cannot bypass the deadline, capacity or credit limit', async () => {
+    const cases = [
+      ['direct-expired', courseData({ semester: 'direct-expired', registrationEndsAt: yesterday }), 3],
+      ['direct-full', courseData({ semester: 'direct-full', capacity: 1, enrolledCount: 1 }), 3],
+      ['direct-overlimit', courseData({ semester: 'limit-term', credits: 1 }), 21],
+    ];
+    for (const [id, course, total] of cases) {
+      await seed('courses/' + id, course);
+      const batch = writeBatch(student);
+      batch.set(doc(student, 'course_selections', 'student-a_' + id), selectionData('student-a', id, course));
+      batch.update(doc(student, 'courses', id), { enrolledCount: course.enrolledCount + 1 });
+      batch.set(doc(student, 'enrollment_terms', 'student-a_' + course.semester), {
+        studentUid: 'student-a', semester: course.semester, totalCredits: total,
+        lastCourseId: id, updatedAt: serverTimestamp(),
+      });
+      await denied(() => batch.commit());
+    }
+  });
+
   await seed('reservation_slots/slot-a', slotData({ capacity: 2 }));
   await check('standalone reservation counter and forged reservation rejected', async () => {
     await denied(() => updateDoc(doc(student, 'reservation_slots/slot-a'), { reservedCount: 1 }));
@@ -211,6 +230,16 @@ try {
     await seed('reservation_slots/inactive', slotData({ status: 'inactive' }));
     await assert.rejects(() => service.reserveSlot('expired', 'student-a'), /مهلت/);
     await assert.rejects(() => service.reserveSlot('inactive', 'student-a'), /غیرفعال/);
+    for (const id of ['expired', 'inactive']) {
+      const slot = slotData({ status: id === 'inactive' ? 'inactive' : 'active', bookingEndsAt: id === 'expired' ? yesterday : tomorrow });
+      const batch = writeBatch(student);
+      batch.set(doc(student, 'student_reservations', 'student-a_' + id), {
+        slotId: id, studentUid: 'student-a', title: slot.title, category: slot.category,
+        date: slot.date, time: slot.time, status: 'active', createdAt: serverTimestamp(),
+      });
+      batch.update(doc(student, 'reservation_slots', id), { reservedCount: 1 });
+      await denied(() => batch.commit());
+    }
   });
 
   const submission = { title: 'Synthetic title', category: 'Synthetic category', description: 'Synthetic description', studentUid: 'student-a', studentName: 'Test student-a', studentId: 'TEST-student-a', createdAt: serverTimestamp() };

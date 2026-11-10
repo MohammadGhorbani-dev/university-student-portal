@@ -36,7 +36,7 @@ service cloud.firestore {
         && request.resource.data.email is string && request.resource.data.email.size() <= 254
         && request.resource.data.phone is string && request.resource.data.phone.size() <= 50
         && request.resource.data.address is string && request.resource.data.address.size() <= 2000
-        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 200000;
+        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 1000000;
       // Deletion would destroy the trusted migration marker and orphan academic records.
       allow delete: if false;
     }

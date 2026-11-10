@@ -92,9 +92,12 @@ export const AuthProvider = ({ children }) => {
         unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserData(normalizeProfile(docSnap.data()));
+          } else {
+            setUserData(null);
           }
           setLoading(false);
         }, (error) => {
+          setUserData(null);
           console.error("Error fetching user data:", error);
           toast.error("خطا در ارتباط با سرور. لطفاً اتصال اینترنت خود را بررسی کنید.", { id: 'network-error' });
           setLoading(false);

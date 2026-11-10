@@ -2,6 +2,10 @@
 
 > A modern, responsive university student portal built with React, Vite, Tailwind CSS, and Firebase.
 
+> **Validation branch:** The security repairs on this branch have not been deployed
+> to the hosted demo. Review [the security model and legacy data migration gate](docs/SECURITY-MIGRATION.md)
+> before merging or deploying; the changed client and rules must be released together.
+
 🌐 Accessing the Live Demo
 
 Important for users in Iran: Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
