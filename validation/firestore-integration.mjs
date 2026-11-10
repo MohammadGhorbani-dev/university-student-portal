@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { initializeApp, deleteApp } from 'firebase/app';
-import { connectFirestoreEmulator, getFirestore, doc, setDoc, updateDoc, getDoc, deleteDoc, terminate, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
+import { connectFirestoreEmulator, getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, query, where, deleteDoc, terminate, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
 import { createRegistrationService } from '../src/services/registration.js';
 import { normalizeProfile } from '../src/utils/profile.js';
 import { getCurrentSemester, isSemesterPast } from '../src/utils/semesterUtils.js';
@@ -69,6 +69,23 @@ try {
   await seed('users/staff-a', { ...studentData('staff-a'), role: 'staff', createdAt: tomorrow });
   const service = createRegistrationService(student, () => 'student-a');
   const otherService = createRegistrationService(other, () => 'student-b');
+  await check('anonymous access to private application collections is denied', async () => {
+    const app = initializeApp({ projectId, apiKey: 'fake-key', appId: 'fake-app' }, 'anonymous');
+    const db = getFirestore(app);
+    connectFirestoreEmulator(db, '127.0.0.1', 8187);
+    apps.push({ app, db });
+    for (const path of ['users/student-a', 'courses/missing', 'reservation_slots/missing', 'requests/missing']) {
+      await denied(() => getDoc(doc(db, path)));
+    }
+  });
+  await check('staff can create valid courses and slots but students cannot manage them', async () => {
+    await setDoc(doc(staff, 'courses/staff-created'), courseData());
+    await setDoc(doc(staff, 'reservation_slots/staff-created'), slotData());
+    await denied(() => setDoc(doc(student, 'courses/student-created'), courseData()));
+    await denied(() => setDoc(doc(student, 'reservation_slots/student-created'), slotData()));
+    await deleteDoc(doc(staff, 'courses/staff-created'));
+    await deleteDoc(doc(staff, 'reservation_slots/staff-created'));
+  });
   await check('normal public student signup succeeds', async () => {
     const db = database('new-student');
     await setDoc(doc(db, 'users/new-student'), studentData('new-student'));
@@ -273,6 +290,17 @@ try {
     assert.equal(getCurrentSemester(new Date('2027-02-19T22:00:00Z')), 'spring_2027');
     assert.equal(getCurrentSemester(new Date('2026-08-01T00:00:00Z')), null);
     assert.equal(isSemesterPast('fall_2025'), true);
+  });
+  await check('application queries return own records; broad and cross-student queries are denied', async () => {
+    const ownSelections = await getDocs(query(collection(student, 'course_selections'), where('studentUid', '==', 'student-a'), where('status', '==', 'active')));
+    assert(ownSelections.docs.some(s => s.id === 'student-a_course-a'));
+    for (const name of ['student_reservations', 'requests', 'support_tickets']) {
+      const ownRecords = await getDocs(query(collection(student, name), where('studentUid', '==', 'student-a')));
+      assert(ownRecords.size > 0);
+    }
+    await denied(() => getDocs(collection(student, 'course_selections')));
+    await denied(() => getDocs(query(collection(student, 'course_selections'), where('studentUid', '==', 'student-b'))));
+    assert((await getDocs(collection(staff, 'users'))).size > 0);
   });
   console.log(JSON.stringify(results, null, 2));
   await writeFile('validation/rules-results.json', JSON.stringify(results, null, 2));
