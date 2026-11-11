@@ -38,7 +38,7 @@ jobs:
           npx --yes --package firebase-tools@15.28.1 firebase emulators:exec
           --project demo-portal-audit --only firestore
           --config firebase.validation.json
-          'node validation/firestore-integration.mjs'
+          'node validation/firestore-integration.mjs && node --test validation/migration-emulator.test.mjs'
       - name: Preserve validation evidence
         if: always()
         uses: actions/upload-artifact@v5

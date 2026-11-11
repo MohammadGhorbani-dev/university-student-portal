@@ -1,8 +1,8 @@
 # Security model and deployment gate
 
-This branch is a validation candidate. Its Firestore rules and changed client
-must be reviewed and released together. No live data was read or migrated while
-developing the repair. Do not deploy this branch's rules alone over a legacy database.
+This branch is a validation candidate. Release the Firestore rules and changed
+Firebase client together, after the legacy data migration. The standalone
+showcase has a separate build and uses synthetic data.
 
 ## Identities and roles
 
@@ -48,36 +48,43 @@ node scripts/migration-plan.mjs SNAPSHOT_JSON PLAN_JSON OWNER_DECISIONS_JSON
 node --test validation/migration.test.mjs
 ```
 
-The optional decisions file lists `verifiedPrivilegedUids` and `legacyJalaliSlotIds` after owner review. For a confirmed Jalali date with a time interval, the planner proposes a booking deadline at the start of that interval in Tehran time and retains the original date and time fields. Review the proposed changes and blocking issues before preparing a migration runner.
+The decisions file lists `verifiedPrivilegedUids` and `legacyJalaliSlotIds` after
+owner review. For a confirmed Jalali date with a time interval, the planner uses
+the start of that interval in Tehran time as the booking deadline and retains
+the original date and time fields. Use an empty JSON object when there are no
+decisions to apply.
 
-The following is a deployment checklist, not an automatic migration script:
+## Apply and verify
 
-1. Obtain owner approval for the real database and planned maintenance window.
-   Export/backup data. Prevent all enrollment/reservation writes through temporary
-   maintenance rules, including writes from older deployed clients; hiding buttons
-   is insufficient. Keep ordinary reads available as appropriate.
-2. In a trusted Admin SDK process, inventory profiles, courses, selections and
-   reservations. Produce a dry-run report of duplicate/noncanonical IDs, missing
-   parents, invalid credits/semesters/statuses, inconsistent counters and totals
-   over 20. Reconcile exceptions explicitly with the owner; do not discard history.
-3. Using authoritative courses and the reconciled active selections, create term
-   ledgers and repair course counters. Initialize reservation counters from
-   reconciled active reservations. Backfill course `registrationEndsAt` and slot
-   `bookingEndsAt` timestamps. The UI creates them using Tehran time; semester
-   dates are defined in `src/utils/semesterUtils.js`.
-4. Set `enrollmentVersion: 1` only for accounts whose complete history was checked.
-   Resolve fields/aliases without overwriting a conflicting canonical identity.
-   Validate the results while maintenance remains in effect. If interrupted,
-   leave writes disabled and use a restartable migration; never reopen partially
-   migrated data.
-5. Review existing indexes and deploy compatible client/rules, then run approved
-   smoke tests on a dedicated test project before reopening writes. The checked-in
-   `firestore.indexes.json` defines no custom indexes; it is not evidence that an
-   existing console has no indexes. Do not delete console indexes blindly.
+The runner regenerates the plan from the reviewed snapshot and decisions and
+compares the entire inventory with the current database. It applies all field
+patches and ledger creations in one atomic Firestore commit. Each patch requires
+the backed-up document version, and each creation requires the document to be
+absent. Afterward, the runner checks the inventory against the expected result.
+[Firestore commit reference](https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/commit)
 
-The migration itself remains pending and requires separate approval. If existing
-data can be replaced because the project is only a demo, that is a separate owner
-decision, not an assumption of this change.
+The workflow rehearses the apply process against a local emulator using synthetic
+data. A stale document or a ledger created after the preflight rejects the whole
+commit. A refreshed plan for an already migrated database produces zero writes.
+
+For the live release, confirm the maintenance window and database operation
+with the owner. Save the current rules and deployed client revision. Freeze
+Firestore writers, including clients on the old version and administrative
+jobs, before taking a fresh backup and reviewing the resulting plan. The runner
+checks existing document versions. The write freeze also protects against new
+documents arriving after the preflight.
+
+```sh
+node scripts/apply-migration.mjs --production SNAPSHOT_JSON PLAN_JSON OWNER_DECISIONS_JSON FIREBASE_TOOLS_ROOT --maintenance-active
+```
+
+The command applies the reviewed plan to `university-portal-demo` using the
+existing Firebase CLI account. The maintenance flag confirms an operator action.
+If the commit response or verification fails, keep maintenance active and take
+a fresh inventory to determine the database state before retrying. Once the
+result is verified, release the compatible client and rules and check the
+authorized smoke scenarios before reopening writes. Review the console indexes
+before any index deployment.
 
 ## Parent management
 

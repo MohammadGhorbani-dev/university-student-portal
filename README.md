@@ -8,6 +8,8 @@
 
 ## Try the standalone demo
 
+**[Open the published demo](https://university-demo.mohammadghorbani-dev.ir/)**
+
 Try the sign-in form with the supplied sample account, register a sample student, or open a dashboard using the Student, Staff, and Admin shortcuts. Try enrolling in a course, booking a study room, or submitting a request and answering it as staff. The demo uses synthetic data in the current browser tab. Reset restores the starting scenario and clears locally registered accounts.
 
 ```sh

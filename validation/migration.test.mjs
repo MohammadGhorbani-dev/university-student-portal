@@ -21,7 +21,7 @@ test('plan preserves the original snapshot and history, normalizes aliases and r
   assert.deepEqual(input, before);
   assert.equal(plan.structurallyReady, true);
   assert.deepEqual(plan.deletes, []);
-  assert.equal(plan.applyImplemented, false);
+  assert.equal(plan.applied, false);
   assert.equal(plan.changes.find(c => c.path === 'courses/c').patch.enrolledCount, 1);
   assert.equal(plan.changes.find(c => c.path === 'reservation_slots/s').patch.reservedCount, 1);
   assert.equal(plan.changes.find(c => c.path === 'enrollment_terms/u_fall_2026').patch.totalCredits, 3);

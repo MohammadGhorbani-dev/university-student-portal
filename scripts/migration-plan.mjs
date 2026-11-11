@@ -109,7 +109,7 @@ export function planMigration(snapshot, { verifiedPrivilegedUids = [], legacyJal
   return {
     format: 'portal-migration-plan-v1', projectId: snapshot.projectId,
     sourceHash: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'),
-    structurallyReady: issues.length === 0, applyImplemented: false,
+    structurallyReady: issues.length === 0, applied: false,
     requiresMaintenanceAndOwnerApproval: true, deletes: [], issues, changes,
     counts: { profiles: Object.keys(users).length, courses: Object.keys(courses).length, selections: Object.keys(selections).length, reservations: Object.keys(reservations).length },
   };

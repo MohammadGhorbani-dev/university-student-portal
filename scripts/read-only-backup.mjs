@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
+import { getFirebaseCliAccessToken } from './firebase-cli-credentials.mjs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -75,21 +75,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const [firebaseToolsRoot, projectId, outputDirectory] = process.argv.slice(2);
     if (!firebaseToolsRoot || projectId !== 'university-portal-demo' || !outputDirectory) throw new Error('Usage: node scripts/read-only-backup.mjs FIREBASE_TOOLS_ROOT university-portal-demo OUTPUT_DIRECTORY');
-    const require = createRequire(import.meta.url);
-    const version = require(join(resolve(firebaseToolsRoot), 'package.json')).version;
-    if (version !== '15.28.1') throw new Error('This CLI credential adapter was verified with firebase-tools 15.28.1 only.');
-    const auth = require(join(resolve(firebaseToolsRoot), 'lib/auth.js'));
-    const account = auth.getGlobalDefaultAccount();
-    if (!account?.tokens) throw new Error('Firebase CLI login is required.');
-    let tokens = account.tokens;
-    if (!tokens.access_token || tokens.expires_at < Date.now() + 60000) {
-      try { tokens = await auth.getAccessToken(tokens.refresh_token, ['https://www.googleapis.com/auth/cloud-platform']); }
-      catch { throw new Error('Authentication refresh failed; reconnect Firebase CLI on a working network.'); }
-    }
-    if (!tokens?.access_token) throw new Error('No usable CLI access token.');
+    const accessToken = await getFirebaseCliAccessToken(firebaseToolsRoot);
     const result = await readOnlyBackup({ projectId, request: async (path, method, body) => {
       const response = await fetch('https://firestore.googleapis.com/v1/' + path, {
-        method, headers: { Authorization: 'Bearer ' + tokens.access_token, 'Content-Type': 'application/json' },
+        method, headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
         ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(25000),
       });
       if (!response.ok) throw new Error('Read-only Firestore request failed: HTTP ' + response.status);
