@@ -9,8 +9,8 @@ import { useState } from 'react';
 import HelpSection from '../components/ui/HelpSection';
 
 export default function Register() {
-  const { register: registerForm, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm();
-  const { register } = useAuth();
+  const { register: registerForm, handleSubmit, watch, reset, formState: { errors, isSubmitting } } = useForm();
+  const { register, demo } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +62,8 @@ export default function Register() {
         <div className="text-center mb-10">
           <span className="text-blue-600 font-mono text-sm tracking-[0.3em] uppercase mb-2 block">ثبت‌نام</span>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-50 mb-2 leading-tight">ثبت‌نام دانشجو</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">برای ثبتنام، اطلاعات خود را وارد کنید.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">{demo ? 'حساب نمونه در همین زبانه ساخته می‌شود. برای فرم از دادهٔ ساختگی استفاده کنید.' : 'برای ثبت‌نام، اطلاعات خود را وارد کنید.'}</p>
+          {demo && <button type="button" className="mt-4 rounded-lg bg-blue-50 dark:bg-blue-950/40 px-4 py-2 text-sm font-bold text-blue-700 dark:text-blue-300" onClick={() => reset(demo.sampleRegistration())}>پر کردن اطلاعات نمونه</button>}
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -104,7 +105,7 @@ export default function Register() {
               {errors.studentId && <p className="text-rose-500 text-xs font-bold mt-2">{errors.studentId.message}</p>}
             </div>
 
-            <div>
+            {!demo && <div>
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
                 کد ملی (اختیاری)
               </label>
@@ -114,7 +115,7 @@ export default function Register() {
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm placeholder:text-slate-400"
                 {...registerForm('nationalId')}
               />
-            </div>
+            </div>}
 
             <div className="sm:col-span-2">
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
@@ -213,7 +214,7 @@ export default function Register() {
           </div>
         </form>
       </div>
-      <HelpSection />
+      {!demo && <HelpSection />}
     </div>
     </div>
   );

@@ -2,6 +2,8 @@
 
 Mohammad Ghorbani's university portal can be built as a static demo with synthetic student, staff and administrator accounts. The role selector switches between those accounts. Changes stay in the current browser tab, and Reset restores the starting data.
 
+The sign-in form includes a button to fill the public sample credentials. Registration creates a separate sample student with an `example.test` address and a `DEMO-` student number. The sample password is fixed and the form leaves out national IDs. You can sign out and sign back in as the sample student during the same tab session. Reset clears newly registered demo accounts.
+
 ## Build and preview
 
 ```sh

@@ -12,6 +12,47 @@ async function student(page) {
   await expect(page.getByRole('heading', { name: 'داشبورد کاربری', exact: true })).toBeVisible();
 }
 
+test('demo login checks sample credentials and preserves the session on reload', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('button', { name: 'پر کردن حساب نمونه' }).click();
+  await page.locator('input[name="password"]').fill('wrong-demo-password');
+  await page.getByRole('button', { name: 'ورود به پورتال', exact: true }).click();
+  await expect(page.getByText('ایمیل یا رمز نمونه درست نیست.')).toBeVisible();
+  await page.getByRole('button', { name: 'پر کردن حساب نمونه' }).click();
+  await page.getByRole('button', { name: 'ورود به پورتال', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'داشبورد کاربری' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'داشبورد کاربری' })).toBeVisible();
+  await expect(page.getByLabel('نقش:', { exact: true })).toHaveValue('student');
+});
+
+test('demo signup creates a distinct student account that can sign in again', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'ثبت‌نام کنید' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.locator('input[name="nationalId"]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'پر کردن اطلاعات نمونه' }).click();
+  const email = await page.locator('input[name="email"]').inputValue();
+  const password = await page.locator('input[name="password"]').inputValue();
+  await page.getByRole('button', { name: 'ثبت‌نام در سامانه' }).click();
+  await expect(page.getByText('آرمان خوش آمدید')).toBeVisible();
+  await expect(page.getByLabel('نقش:', { exact: true })).toHaveValue('registered');
+  expect(await page.evaluate(value => Object.values(sessionStorage).some(item => item.includes(value)), password)).toBe(false);
+
+  await page.getByLabel('نقش:', { exact: true }).selectOption('');
+  await expect(page).toHaveURL(/\/login$/);
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.getByRole('button', { name: 'ورود به پورتال', exact: true }).click();
+  await expect(page.getByText('آرمان خوش آمدید')).toBeVisible();
+  await page.getByRole('button', { name: 'بازنشانی دمو', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.getByRole('button', { name: 'ورود به پورتال', exact: true }).click();
+  await expect(page.getByText('ایمیل یا رمز نمونه درست نیست.')).toBeVisible();
+});
+
 test('all roles and internal pages load with no external network or page errors', async ({ page }) => {
   const errors = [], external = [];
   page.on('pageerror', error => errors.push(error.message));

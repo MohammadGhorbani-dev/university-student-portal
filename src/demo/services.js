@@ -1,10 +1,11 @@
-import { snapshot, change, uidFor } from './store.js';
+import { snapshot, change } from './store.js';
 import { isSemesterPast } from '../utils/semesterUtils.js';
 
 const rows = (s, name) => Object.values(s[name]).sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 function current(s) {
-  if (!s.role) throw new Error('ابتدا نقش نمایشی را انتخاب کنید.');
-  return { uid: uidFor(s.role), ...s.users[uidFor(s.role)] };
+  const profile = s.users[s.activeUid];
+  if (!profile) throw new Error('ابتدا وارد حساب نمایشی شوید.');
+  return { uid: s.activeUid, ...profile };
 }
 function staff(s) { if (!['admin', 'staff'].includes(current(s).role)) throw new Error('این عملیات برای مسئول آموزش است.'); }
 function own(s, uid) { const u = current(s); if (u.uid !== uid && !['admin', 'staff'].includes(u.role)) throw new Error('دسترسی به سوابق دیگری مجاز نیست.'); }

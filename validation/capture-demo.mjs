@@ -18,7 +18,12 @@ try {
   const page = await context.newPage();
   await page.goto('http://127.0.0.1:3012/');
   await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: 'docs/images/demo-landing.png', animations: 'disabled' });
+  await page.getByRole('button', { name: 'پر کردن حساب نمونه' }).waitFor();
+  await page.screenshot({ path: 'docs/images/demo-login.png', animations: 'disabled' });
+  await page.getByRole('link', { name: 'ثبت‌نام کنید' }).click();
+  await page.getByRole('button', { name: 'پر کردن اطلاعات نمونه' }).click();
+  await page.screenshot({ path: 'docs/images/demo-register.png', animations: 'disabled' });
+  await page.getByRole('link', { name: 'وارد شوید' }).click();
   await page.getByRole('button', { name: 'ورود به نقش دانشجو', exact: true }).click();
   await page.goto('http://127.0.0.1:3012/courses');
   await page.getByRole('article', { name: 'پایگاه داده', exact: true }).waitFor();
@@ -35,5 +40,5 @@ try {
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: 'docs/images/demo-student-mobile.png', animations: 'disabled' });
   await context.close();
-  console.log('Saved four screenshots of synthetic demo data.');
+  console.log('Saved five screenshots of synthetic demo data.');
 } finally { await browser.close(); server.kill(); }

@@ -9,8 +9,8 @@ import { useState } from 'react';
 import HelpSection from '../components/ui/HelpSection';
 
 export default function Login() {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm();
-  const { login } = useAuth();
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm();
+  const { login, demo } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -40,20 +40,32 @@ export default function Login() {
       <div className="w-full max-w-md flex flex-col gap-6 relative z-10 my-8">
       <div className="bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-2xl shadow-2xl dark:shadow-none border border-slate-200 dark:border-slate-700 w-full relative z-10">
         <div className="text-center mb-10">
-          <span className="text-blue-600 font-mono text-sm tracking-[0.3em] uppercase mb-2 block">احراز هویت</span>
+          <span className="text-blue-600 font-mono text-sm tracking-[0.3em] uppercase mb-2 block">{demo ? 'ورود نمایشی' : 'احراز هویت'}</span>
           <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-slate-50 mb-2 leading-tight">پورتال دانشجویی</h1>
-          <p className="text-sm mt-2 text-slate-500 dark:text-slate-400">برای ورود، اطلاعات خود را وارد کنید.</p>
+          <p className="text-sm mt-2 text-slate-500 dark:text-slate-400">{demo ? 'برای امتحان فرم ورود از حساب نمونه استفاده کنید.' : 'برای ورود، اطلاعات خود را وارد کنید.'}</p>
         </div>
+
+        {demo && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 p-3 text-sm">
+            <div dir="ltr" className="font-mono break-all">{demo.email}<br />{demo.password}</div>
+            <button type="button" className="font-bold text-blue-700 dark:text-blue-300" onClick={() => {
+              setValue('email', demo.email, { shouldValidate: true });
+              setValue('password', demo.password, { shouldValidate: true });
+            }}>پر کردن حساب نمونه</button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="login-email" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
               ایمیل (نام کاربری)
             </label>
             <input
+              id="login-email"
               type="email"
+              autoComplete={demo ? 'off' : 'username'}
               dir="ltr"
-              placeholder="student@university.ac.ir"
+              placeholder={demo?.email ?? 'student@university.ac.ir'}
               className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 rounded-lg border ${errors.email ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500'} text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 transition-all text-sm placeholder:text-slate-400`}
               {...register('email', { 
                 required: 'لطفاً ایمیل خود را وارد کنید.',
@@ -69,12 +81,14 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+            <label htmlFor="login-password" className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
               رمز عبور
             </label>
             <div className="relative">
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete={demo ? 'off' : 'current-password'}
                 dir="ltr"
                 placeholder="••••••••"
                 className={`w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 rounded-lg border ${errors.password ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700 focus:ring-blue-500'} text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 transition-all text-sm placeholder:text-slate-400 pr-10`}
@@ -100,7 +114,7 @@ export default function Login() {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm pt-2">
+          {!demo && <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-sm pt-2">
             <label className="flex items-center gap-2 cursor-pointer group">
               <input type="checkbox" className="rounded bg-white dark:bg-slate-900 border-slate-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-white dark:focus:ring-offset-slate-900" />
               <span className="text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:text-slate-50 transition-colors">مرا به خاطر بسپار</span>
@@ -108,7 +122,7 @@ export default function Login() {
             <Link to="/forgot-password" className="text-blue-600 hover:text-blue-700 dark:hover:text-blue-400 font-bold transition-colors cursor-pointer">
               فراموشی رمز عبور؟
             </Link>
-          </div>
+          </div>}
 
           <button
             type="submit"
@@ -129,8 +143,15 @@ export default function Login() {
             </p>
           </div>
         </form>
+        {demo && (
+          <div className="mt-6 flex flex-wrap justify-center gap-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+            {Object.entries(demo.roles).map(([role, name]) => (
+              <button key={role} type="button" onClick={() => demo.selectRole(role)} className="rounded-lg border border-blue-200 dark:border-blue-900 px-3 py-2 text-sm font-bold text-blue-700 dark:text-blue-300">ورود به نقش {name}</button>
+            ))}
+          </div>
+        )}
       </div>
-      <HelpSection />
+      {!demo && <HelpSection />}
     </div>
     </div>
   );

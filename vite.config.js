@@ -22,7 +22,6 @@ export default defineConfig(({ mode }) => {
         ...(demo ? [
           { find: /.*\/context\/AuthContext(?:\.jsx)?$/, replacement: path.resolve(__dirname, 'src/demo/AuthContext.jsx') },
           { find: /.*\/services\/firestore(?:\.js)?$/, replacement: path.resolve(__dirname, 'src/demo/services.js') },
-          { find: /.*\/pages\/Login(?:\.jsx)?$/, replacement: path.resolve(__dirname, 'src/demo/Landing.jsx') },
         ] : []),
         { find: '@', replacement: path.resolve(__dirname, '.') },
       ],

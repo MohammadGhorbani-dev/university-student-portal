@@ -30,7 +30,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function AppRoutes() {
-  const { currentUser } = useAuth();
+  const { currentUser, demo } = useAuth();
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
@@ -46,7 +46,7 @@ export default function AppRoutes() {
       />
       <Route
         path="/forgot-password"
-        element={currentUser ? <Navigate to="/" replace /> : <ForgotPassword />}
+        element={demo ? <Navigate to="/login" replace /> : currentUser ? <Navigate to="/" replace /> : <ForgotPassword />}
       />
 
       {/* Protected Routes */}

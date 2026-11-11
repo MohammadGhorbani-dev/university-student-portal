@@ -8,7 +8,7 @@
 
 ## Try the standalone demo
 
-Choose Student, Staff, or Admin on the demo screen. Try enrolling in a course, booking a study room, or submitting a request and answering it as staff. The demo uses synthetic data in the current browser tab. Reset restores the starting scenario.
+Try the sign-in form with the supplied sample account, register a sample student, or open a dashboard using the Student, Staff, and Admin shortcuts. Try enrolling in a course, booking a study room, or submitting a request and answering it as staff. The demo uses synthetic data in the current browser tab. Reset restores the starting scenario and clears locally registered accounts.
 
 ```sh
 npm ci
@@ -20,7 +20,7 @@ Open `http://127.0.0.1:3010`. See the [demo hosting guide](docs/DEMO.md) for the
 
 ![Student course selection in the standalone demo](docs/images/demo-student-desktop.png)
 
-[Role selection](docs/images/demo-landing.png) · [Staff requests](docs/images/demo-staff-desktop.png) · [Mobile dashboard](docs/images/demo-student-mobile.png)
+[Demo sign-in](docs/images/demo-login.png) · [Demo registration](docs/images/demo-register.png) · [Staff requests](docs/images/demo-staff-desktop.png) · [Mobile dashboard](docs/images/demo-student-mobile.png)
 
 ## 📋 Overview
 
