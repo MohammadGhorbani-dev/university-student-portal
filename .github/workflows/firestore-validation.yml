@@ -28,6 +28,8 @@ jobs:
       - run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
+      - run: node --test validation/migration.test.mjs
+      - run: npm run build:demo
       - name: Validate rules using synthetic local data only
         env:
           FIREBASE_CLI_DISABLE_TELEMETRY: '1'
@@ -52,3 +54,11 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Check desktop and mobile forms without production credentials
         run: npx playwright test --project=chromium --project='Mobile Chrome' --reporter=line
+      - name: Check standalone demo workflows with external network blocked
+        run: npx playwright test --config playwright.demo.config.js
+      - name: Save standalone demo build
+        uses: actions/upload-artifact@v5
+        with:
+          name: university-portal-standalone-demo
+          path: dist-demo/
+          retention-days: 7

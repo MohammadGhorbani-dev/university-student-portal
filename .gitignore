@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+dist-demo/
 .vite/
 coverage/
 .DS_Store
@@ -11,3 +12,4 @@ playwright-report/
 test-results/
 .firebase/
 validation/rules-results.json
+migration-data/

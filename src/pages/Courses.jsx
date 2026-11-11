@@ -435,7 +435,7 @@ export default function Courses() {
               const wouldExceedLimit = course.semester ? (semCredits + (course.credits || 0) > 20) : false;
               
               return (
-                <Card key={course.id} className="flex flex-col">
+                <Card key={course.id} role="article" aria-label={course.title} className="flex flex-col">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">

@@ -6,19 +6,21 @@
 > to the hosted demo. Review [the security model and legacy data migration gate](docs/SECURITY-MIGRATION.md)
 > before merging or deploying; the changed client and rules must be released together.
 
-🌐 Accessing the Live Demo
+## Try the standalone demo
 
-Important for users in Iran: Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
+Choose Student, Staff, or Admin on the demo screen. Try enrolling in a course, booking a study room, or submitting a request and answering it as staff. The demo uses synthetic data in the current browser tab. Reset restores the starting scenario.
 
-If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
+```sh
+npm ci
+npm run build:demo
+npm run preview:demo
+```
 
-## 🌐 Live Demo
+Open `http://127.0.0.1:3010`. See the [demo hosting guide](docs/DEMO.md) for the Cloudflare Pages settings. The separate [Firebase deployment](https://university-portal-demo.web.app/) uses the live backend.
 
-**https://university-portal-demo.web.app**
+![Student course selection in the standalone demo](docs/images/demo-student-desktop.png)
 
-> **Important for users in Iran:** Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
->
-> If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
+[Role selection](docs/images/demo-landing.png) · [Staff requests](docs/images/demo-staff-desktop.png) · [Mobile dashboard](docs/images/demo-student-mobile.png)
 
 ## 📋 Overview
 

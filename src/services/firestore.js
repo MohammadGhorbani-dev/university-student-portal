@@ -197,7 +197,10 @@ export const updateReservationSlot = async (id, data) => {
     const existing = await getDoc(ref);
     if (!existing.exists()) throw new Error('امکان رزرو یافت نشد.');
     const merged = { ...existing.data(), ...data };
-    await updateDoc(ref, { ...data, bookingEndsAt: slotDeadline(merged.date, merged.time) });
+    const scheduleChanged = merged.date !== existing.data().date || merged.time !== existing.data().time;
+    const bookingEndsAt = scheduleChanged || !existing.data().bookingEndsAt
+      ? slotDeadline(merged.date, merged.time) : existing.data().bookingEndsAt;
+    await updateDoc(ref, { ...data, bookingEndsAt });
   } catch (error) {
     throw error;
   }

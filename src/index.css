@@ -1,14 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap');
 @import "tailwindcss";
+
+.demo-shell { height: 100dvh; display: flex; flex-direction: column; }
+.demo-shell > aside { flex-shrink: 0; }
+.demo-content { flex: 1; min-height: 0; overflow: auto; }
+.demo-content .min-h-screen { min-height: 100%; }
+.demo-content .h-screen { height: 100%; }
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: 'Vazirmatn', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-sans: 'Vazirmatn Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 body {
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: 'Vazirmatn Variable', sans-serif;
   overflow-x: hidden;
 }
 
@@ -26,6 +31,10 @@ body {
 
 main > * {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main > * { animation: none; }
 }
 
 /* Base Transition for links and buttons */

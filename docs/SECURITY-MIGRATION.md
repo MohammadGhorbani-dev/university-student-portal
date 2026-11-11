@@ -40,6 +40,16 @@ legacy total as zero would allow students to bypass the credit limit.
 
 ## Required legacy migration, before live release
 
+Run the read-only inventory with the existing Firebase CLI login, then prepare a plan offline. Use a private local output directory outside the repository. The inventory records each document's update time and stores raw Firestore values with checksums. It is gathered over several requests, so take a fresh inventory during the approved maintenance window for the migration.
+
+```sh
+node scripts/read-only-backup.mjs FIREBASE_TOOLS_ROOT university-portal-demo OUTPUT_DIRECTORY
+node scripts/migration-plan.mjs SNAPSHOT_JSON PLAN_JSON OWNER_DECISIONS_JSON
+node --test validation/migration.test.mjs
+```
+
+The optional decisions file lists `verifiedPrivilegedUids` and `legacyJalaliSlotIds` after owner review. For a confirmed Jalali date with a time interval, the planner proposes a booking deadline at the start of that interval in Tehran time and retains the original date and time fields. Review the proposed changes and blocking issues before preparing a migration runner.
+
 The following is a deployment checklist, not an automatic migration script:
 
 1. Obtain owner approval for the real database and planned maintenance window.
