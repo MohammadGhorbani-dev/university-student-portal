@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { curriculumData } from '../data/curriculum';
 import { FiBook, FiLock, FiCheckCircle, FiClock, FiArrowLeft, FiAlertCircle, FiChevronDown, FiPlus } from 'react-icons/fi';
 import EmptyState from '../components/ui/EmptyState';
-import { db } from '../firebase/config';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { getStudentCourses } from '../services/firestore';
 import toast from 'react-hot-toast';
 
 export default function Curriculum() {
@@ -30,13 +29,7 @@ export default function Curriculum() {
     const fetchMyCourses = async () => {
       if (!currentUser) return;
       try {
-        const q = query(
-          collection(db, 'course_selections'),
-          where('studentUid', '==', currentUser.uid),
-          where('status', '==', 'active')
-        );
-        const querySnapshot = await getDocs(q);
-        const courses = querySnapshot.docs.map(doc => doc.data());
+        const courses = await getStudentCourses(currentUser.uid);
         setMyCourses(courses);
       } catch (error) {
         console.error("Error fetching courses:", error);

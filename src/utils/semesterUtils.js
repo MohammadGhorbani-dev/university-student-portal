@@ -11,12 +11,19 @@ export const getSemesterTitle = (semesterId) => {
   return semesters[semesterId]?.title || semesterId;
 };
 
+export const getSemesterEnd = (semesterId) => semesters[semesterId]?.endDate;
+
+export const getCurrentSemester = (now = new Date()) => {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  return Object.values(semesters).find(term => date >= term.startDate && date <= term.endDate)?.id ?? null;
+};
+
 export const isSemesterPast = (semesterId) => {
   const semester = semesters[semesterId];
   if (!semester || !semester.endDate) return false;
   
   const now = new Date();
-  const endDate = new Date(semester.endDate);
+  const endDate = new Date(`${semester.endDate}T23:59:59.999+03:30`);
   
   return now > endDate;
 };

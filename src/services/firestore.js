@@ -1,6 +1,12 @@
-import { isSemesterPast } from '../utils/semesterUtils';
+import { createRegistrationService, courseDeadline, slotDeadline } from './registration';
 import { collection, getDocs, doc, updateDoc, query, orderBy, setDoc, deleteDoc, runTransaction, where, serverTimestamp, getDoc, getCountFromServer, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
+
+const registrations = () => createRegistrationService(db, () => auth.currentUser?.uid);
+export const registerCourse = (id, uid) => registrations().registerCourse(id, uid);
+export const dropCourse = (id, courseId) => registrations().dropCourse(id, courseId);
+export const reserveSlot = (id, uid) => registrations().reserveSlot(id, uid);
+export const cancelStudentReservation = (id, slotId) => registrations().cancelStudentReservation(id, slotId);
 
 const verifyAdminOrStaff = async () => {
   const user = auth.currentUser;
@@ -79,6 +85,7 @@ export const createCourse = async (data) => {
     await setDoc(newDocRef, {
       ...data,
       enrolledCount: 0,
+      registrationEndsAt: courseDeadline(data.semester),
       createdAt: serverTimestamp()
     });
     return newDocRef.id;
@@ -90,7 +97,7 @@ export const createCourse = async (data) => {
 export const updateCourse = async (id, data) => {
   try {
     await verifyAdminOrStaff();
-    await updateDoc(doc(db, 'courses', id), data);
+    await updateDoc(doc(db, 'courses', id), { ...data, ...(data.semester ? { registrationEndsAt: courseDeadline(data.semester) } : {}) });
   } catch (error) {
     throw error;
   }
@@ -130,105 +137,7 @@ export const getAllCourseSelections = async () => {
   }
 };
 
-export const registerCourse = async (courseId, studentUid, courseData) => {
-  try {
-    const courseSemester = courseData.semester;
-    if (!courseSemester) {
-      throw new Error('این درس فاقد ترم تحصیلی معتبر است و قابل اخذ نیست.');
-    }
 
-    // Check maximum 20 credits limit before transaction
-    const selectionsRef = collection(db, 'course_selections');
-    const q = query(selectionsRef, where('studentUid', '==', studentUid), where('semester', '==', courseSemester), where('status', '==', 'active'));
-    const snapshot = await getDocs(q);
-    
-    let totalCredits = 0;
-    snapshot.forEach(doc => {
-      totalCredits += (doc.data().credits || 0);
-    });
-
-    const newCourseCredits = courseData.credits || 0;
-    if (totalCredits + newCourseCredits > 20) {
-      throw new Error('مجموع واحدهای انتخابی شما نمی‌تواند بیشتر از ۲۰ واحد باشد.');
-    }
-
-    await runTransaction(db, async (transaction) => {
-      const courseRef = doc(db, 'courses', courseId);
-      const courseSnap = await transaction.get(courseRef);
-      
-      if (!courseSnap.exists()) {
-        throw new Error('درس مورد نظر یافت نشد');
-      }
-
-      const currentCount = courseSnap.data().enrolledCount || 0;
-      const capacity = courseSnap.data().capacity || 0;
-      
-      if (currentCount >= capacity) {
-        throw new Error('ظرفیت این درس تکمیل شده است');
-      }
-
-      // Check if already registered
-      const selectionRef = doc(db, 'course_selections', `${studentUid}_${courseId}`);
-      const selectionSnap = await transaction.get(selectionRef);
-      
-      if (selectionSnap.exists() && selectionSnap.data().status === 'active') {
-        throw new Error('شما قبلاً این درس را انتخاب کرده‌اید');
-      }
-
-      // Add or update student course selection
-      transaction.set(selectionRef, {
-        courseId,
-        studentUid,
-        title: courseData.title,
-        code: courseData.code,
-        credits: courseData.credits,
-        professor: courseData.professor,
-        day: courseData.day || null,
-        startTime: courseData.startTime || null,
-        endTime: courseData.endTime || null,
-        department: courseData.department || null,
-        semester: courseSemester,
-        status: 'active',
-        createdAt: serverTimestamp()
-      });
-
-      // Increment count
-      transaction.update(courseRef, {
-        enrolledCount: currentCount + 1
-      });
-    });
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const dropCourse = async (selectionId, courseId, semesterId) => {
-  if (semesterId && isSemesterPast(semesterId)) {
-    throw new Error('امکان حذف درس از ترم‌های گذشته وجود ندارد.');
-  }
-  try {
-    await runTransaction(db, async (transaction) => {
-      const selectionRef = doc(db, 'course_selections', selectionId);
-      const courseRef = doc(db, 'courses', courseId);
-      
-      const selectionSnap = await transaction.get(selectionRef);
-      if (!selectionSnap.exists()) {
-        throw new Error('انتخاب واحد یافت نشد');
-      }
-      
-      const courseSnap = await transaction.get(courseRef);
-      
-      transaction.update(selectionRef, { status: 'dropped' });
-      
-      if (courseSnap.exists()) {
-        const currentCount = courseSnap.data().enrolledCount || 0;
-        transaction.update(courseRef, { enrolledCount: Math.max(0, currentCount - 1) });
-      }
-    });
-  } catch (error) {
-    throw error;
-  }
-};
 
 export const updateUserProfile = async (uid, data, role = 'student') => {
   try {
@@ -237,7 +146,7 @@ export const updateUserProfile = async (uid, data, role = 'student') => {
     // RBAC: Filter allowed fields based on role
     let allowedData = { ...data };
     
-    if (role === 'student') {
+    if (role === 'student' || role === 'admin' || role === 'staff') {
       const allowedFields = ['email', 'phone', 'address', 'avatar'];
       allowedData = Object.keys(data)
         .filter(key => allowedFields.includes(key))
@@ -272,6 +181,7 @@ export const createReservationSlot = async (data) => {
     await setDoc(newDocRef, {
       ...data,
       reservedCount: 0,
+      bookingEndsAt: slotDeadline(data.date, data.time),
       createdAt: serverTimestamp()
     });
     return newDocRef.id;
@@ -283,7 +193,14 @@ export const createReservationSlot = async (data) => {
 export const updateReservationSlot = async (id, data) => {
   try {
     await verifyAdminOrStaff();
-    await updateDoc(doc(db, 'reservation_slots', id), data);
+    const ref = doc(db, 'reservation_slots', id);
+    const existing = await getDoc(ref);
+    if (!existing.exists()) throw new Error('امکان رزرو یافت نشد.');
+    const merged = { ...existing.data(), ...data };
+    const scheduleChanged = merged.date !== existing.data().date || merged.time !== existing.data().time;
+    const bookingEndsAt = scheduleChanged || !existing.data().bookingEndsAt
+      ? slotDeadline(merged.date, merged.time) : existing.data().bookingEndsAt;
+    await updateDoc(ref, { ...data, bookingEndsAt });
   } catch (error) {
     throw error;
   }
@@ -319,81 +236,7 @@ export const getAllStudentReservations = async () => {
   }
 };
 
-export const reserveSlot = async (slotId, studentUid, slotData) => {
-  try {
-    await runTransaction(db, async (transaction) => {
-      const slotRef = doc(db, 'reservation_slots', slotId);
-      const slotSnap = await transaction.get(slotRef);
-      
-      if (!slotSnap.exists()) {
-        throw new Error('رزرو مورد نظر یافت نشد');
-      }
 
-      const currentCount = slotSnap.data().reservedCount || 0;
-      const capacity = slotSnap.data().capacity || 0;
-      
-      if (currentCount >= capacity) {
-        throw new Error('ظرفیت این رزرو تکمیل شده است');
-      }
-      
-      if (slotSnap.data().status !== 'active') {
-        throw new Error('این رزرو در حال حاضر فعال نیست');
-      }
-
-      // Check if already reserved
-      const resRef = doc(db, 'student_reservations', `${studentUid}_${slotId}`);
-      const resSnap = await transaction.get(resRef);
-      
-      if (resSnap.exists() && resSnap.data().status === 'active') {
-        throw new Error('شما قبلاً این آیتم را رزرو کرده‌اید');
-      }
-
-      // Add or update student reservation
-      transaction.set(resRef, {
-        slotId,
-        studentUid,
-        title: slotData.title,
-        category: slotData.category,
-        date: slotData.date,
-        time: slotData.time,
-        status: 'active',
-        createdAt: serverTimestamp()
-      });
-
-      // Increment count
-      transaction.update(slotRef, {
-        reservedCount: currentCount + 1
-      });
-    });
-  } catch (error) {
-    throw error;
-  }
-};
-
-export const cancelStudentReservation = async (reservationId, slotId) => {
-  try {
-    await runTransaction(db, async (transaction) => {
-      const resRef = doc(db, 'student_reservations', reservationId);
-      const slotRef = doc(db, 'reservation_slots', slotId);
-      
-      const resSnap = await transaction.get(resRef);
-      if (!resSnap.exists()) {
-        throw new Error('رزرو یافت نشد');
-      }
-      
-      const slotSnap = await transaction.get(slotRef);
-      
-      transaction.update(resRef, { status: 'cancelled' });
-      
-      if (slotSnap.exists()) {
-        const currentCount = slotSnap.data().reservedCount || 0;
-        transaction.update(slotRef, { reservedCount: Math.max(0, currentCount - 1) });
-      }
-    });
-  } catch (error) {
-    throw error;
-  }
-};
 
 // --- Requests ---
 export const getStudentRequests = async (uid) => {

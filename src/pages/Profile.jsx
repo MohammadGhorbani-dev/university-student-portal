@@ -86,7 +86,7 @@ export default function Profile() {
     try {
       const payload = {
         senderUid: currentUser.uid,
-        senderName: isAdminOrStaff ? `${userData.firstName} ${userData.lastName} (پشتیبانی)` : `${userData.firstName} ${userData.lastName}`,
+        senderName: `${userData.firstName} ${userData.lastName}`,
         senderRole: userData.role,
         message: replyText
       };
@@ -200,8 +200,8 @@ export default function Profile() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit for base64
-        toast.error('حجم عکس باید کمتر از ۱ مگابایت باشد');
+      if (file.size > 512 * 1024) { // Keep the base64 document below Firestore's 1 MiB limit.
+        toast.error('حجم عکس باید کمتر از ۵۱۲ کیلوبایت باشد');
         return;
       }
       const reader = new FileReader();
@@ -348,7 +348,7 @@ export default function Profile() {
               <InfoItemReadOnly label="نام" value={userData?.firstName} />
               <InfoItemReadOnly label="نام خانوادگی" value={userData?.lastName} />
               <InfoItemReadOnly label="شماره دانشجویی" value={userData?.studentId} />
-              <InfoItemReadOnly label="کد ملی" value={userData?.nationalId} />
+              <InfoItemReadOnly label="کد ملی" value={userData?.nationalCode} />
               <InfoItemReadOnly label="دانشکده" value={userData?.faculty} />
               <InfoItemReadOnly label="رشته تحصیلی" value={userData?.major} />
               <InfoItemReadOnly label="سال ورود" value={userData?.entranceYear} />

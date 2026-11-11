@@ -1,139 +1,204 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    function isAuthenticated() {
-      return request.auth != null;
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function staff() { return signedIn() && profile().role in ['admin', 'staff']; }
+    function student() { return signedIn() && profile().role == 'student'; }
+    function own(uid) { return signedIn() && uid == request.auth.uid; }
+    function activeBefore(path) { return exists(path) && get(path).data.status == 'active'; }
+    function delta(path) {
+      return getAfter(path).data.status == 'active' ? (activeBefore(path) ? 0 : 1) : (activeBefore(path) ? -1 : 0);
     }
-    
-    function isAdminOrStaff() {
-      return isAuthenticated() && 
-      exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff'
-      );
+    function fullName() { return profile().firstName + ' ' + profile().lastName; }
+    function studentId() { return profile().get('studentId', profile().get('studentNumber', '-')); }
+    function text(value, max) { return value is string && value.size() > 0 && value.size() <= max; }
+    match /users/{uid} {
+      allow read: if own(uid) || staff();
+      // Roles and academic migrations are provisioned only through a trusted Admin SDK/console.
+      allow create: if own(uid) && request.resource.data.keys().hasOnly([
+        'firstName', 'lastName', 'studentId', 'nationalCode', 'email', 'role',
+        'phone', 'address', 'avatar', 'faculty', 'major', 'entryYear', 'semester',
+        'advisor', 'status', 'gpa', 'creditsPassed', 'createdAt', 'enrollmentVersion'
+      ]) && request.resource.data.role == 'student' && request.resource.data.enrollmentVersion == 1
+        && request.resource.data.email == request.auth.token.email
+        && text(request.resource.data.firstName, 100) && text(request.resource.data.lastName, 100)
+        && text(request.resource.data.studentId, 50) && request.resource.data.nationalCode is string
+        && request.resource.data.nationalCode.size() <= 20
+        && request.resource.data.gpa == 0 && request.resource.data.creditsPassed == 0
+        && request.resource.data.phone == '' && request.resource.data.address == ''
+        && request.resource.data.avatar == '' && request.resource.data.faculty == ''
+        && request.resource.data.major == '' && request.resource.data.entryYear == ''
+        && request.resource.data.semester == '' && request.resource.data.advisor == ''
+        && request.resource.data.status == '' && request.resource.data.createdAt == request.time;
+      allow update: if (own(uid) || staff()) && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['email', 'phone', 'address', 'avatar'])
+        && request.resource.data.email is string && request.resource.data.email.size() <= 254
+        && request.resource.data.phone is string && request.resource.data.phone.size() <= 50
+        && request.resource.data.address is string && request.resource.data.address.size() <= 2000
+        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 1000000;
+      // Deletion would destroy the trusted migration marker and orphan academic records.
+      allow delete: if false;
     }
-    
-    function isOwner(uid) {
-      return isAuthenticated() && request.auth.uid == uid;
+    match /announcements/{id} {
+      allow read: if signedIn();
+      allow write: if staff();
     }
-
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdminOrStaff();
-      
-      allow create: if isAdminOrStaff() || (
-        isOwner(userId) && (
-          request.resource.data.role == 'student' ||
-          (request.resource.data.role == 'admin' && request.auth.token.email == 'admin@uni.ac.ir') ||
-          (request.resource.data.role == 'staff' && request.auth.token.email == 'staff@uni.ac.ir')
-        )
-      );
-      
-      allow update: if isAdminOrStaff() || (
-        isOwner(userId) && 
-        !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['role', 'studentId', 'nationalCode', 'gpa', 'creditsPassed', 'passedCredits', 'major', 'faculty', 'entranceYear', 'entryYear', 'status', 'advisor'])
-      );
-      
-      allow delete: if isAdminOrStaff();
+    function validCourse(data) {
+      return data.credits is int && data.credits >= 1 && data.credits <= 6
+        && data.capacity is int && data.capacity > 0
+        && data.enrolledCount is int && data.enrolledCount >= 0 && data.enrolledCount <= data.capacity
+        && text(data.semester, 50) && data.registrationEndsAt is timestamp;
     }
-    
-    match /announcements/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdminOrStaff();
+    function courseCounter(courseId) {
+      let path = /databases/$(database)/documents/course_selections/$(request.auth.uid + '_' + courseId);
+      let difference = delta(path);
+      return student() && profile().get('enrollmentVersion', 0) == 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enrolledCount'])
+        && difference != 0 && request.resource.data.enrolledCount == resource.data.enrolledCount + difference
+        && getAfter(path).data.studentUid == request.auth.uid && getAfter(path).data.courseId == courseId;
     }
-    
     match /courses/{courseId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAdminOrStaff();
-      
-      allow update: if isAdminOrStaff() || (
-        isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['enrolledCount']) &&
-        (
-          request.resource.data.enrolledCount == resource.data.enrolledCount + 1 ||
-          request.resource.data.enrolledCount == resource.data.enrolledCount - 1 ||
-          request.resource.data.enrolledCount == resource.data.enrolledCount
-        )
-      );
+      allow read: if signedIn();
+      allow create: if staff() && validCourse(request.resource.data) && request.resource.data.enrolledCount == 0;
+      allow update: if validCourse(request.resource.data) && (
+        (staff() && request.resource.data.enrolledCount == resource.data.enrolledCount
+          && (resource.data.enrolledCount == 0 || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'credits', 'semester', 'title', 'code', 'professor', 'day', 'startTime', 'endTime', 'department', 'registrationEndsAt'
+          ]))) || courseCounter(courseId));
+      allow delete: if staff() && resource.data.enrolledCount == 0;
     }
-    
-    match /course_selections/{selectionId} {
-      allow read: if isAdminOrStaff() || (isAuthenticated() && (resource == null || resource.data.studentUid == request.auth.uid));
-      
-      allow create: if isAdminOrStaff() || (
-        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
-      );
-      
-      allow update: if isAdminOrStaff() || (
-        isAuthenticated() && resource.data.studentUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-        resource.data.status == 'active' &&
-        request.resource.data.status == 'dropped'
-      );
-      
-      allow delete: if isAdminOrStaff();
+    function selectionCounter(data, difference) {
+      let coursePath = /databases/$(database)/documents/courses/$(data.courseId);
+      let termPath = /databases/$(database)/documents/enrollment_terms/$(data.studentUid + '_' + data.semester);
+      let previousTotal = exists(termPath) ? get(termPath).data.totalCredits : 0;
+      return getAfter(coursePath).data.enrolledCount == get(coursePath).data.enrolledCount + difference
+        && getAfter(termPath).data.lastCourseId == data.courseId
+        && getAfter(termPath).data.totalCredits == previousTotal + difference * data.credits
+        && getAfter(termPath).data.studentUid == data.studentUid && getAfter(termPath).data.semester == data.semester;
     }
-    
+    function validSelection(data, id) {
+      let course = get(/databases/$(database)/documents/courses/$(data.courseId)).data;
+      return student() && profile().get('enrollmentVersion', 0) == 1 && data.studentUid == request.auth.uid
+        && id == data.studentUid + '_' + data.courseId && request.time < course.registrationEndsAt
+        && data.credits == course.credits && data.semester == course.semester;
+    }
+    function enrollment(data, id) {
+      let course = get(/databases/$(database)/documents/courses/$(data.courseId)).data;
+      return validSelection(data, id) && data.keys().hasOnly([
+        'courseId', 'studentUid', 'title', 'code', 'credits', 'professor', 'day',
+        'startTime', 'endTime', 'department', 'semester', 'status', 'createdAt'
+      ]) && data.status == 'active' && data.createdAt == request.time
+        && data.title == course.title && data.code == course.code && data.professor == course.professor
+        && data.day == course.get('day', null) && data.startTime == course.get('startTime', null)
+        && data.endTime == course.get('endTime', null) && data.department == course.get('department', null)
+        && selectionCounter(data, 1);
+    }
+    match /course_selections/{id} {
+      allow read: if staff() || (signedIn() && (resource == null || own(resource.data.studentUid)));
+      allow create: if enrollment(request.resource.data, id);
+      allow update: if own(resource.data.studentUid) && (
+        (resource.data.status == 'dropped' && enrollment(request.resource.data, id)) ||
+        (resource.data.status == 'active' && request.resource.data.status == 'dropped'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && validSelection(request.resource.data, id) && selectionCounter(request.resource.data, -1)));
+      allow delete: if false;
+    }
+    function validTerm(data, id) {
+      let path = /databases/$(database)/documents/course_selections/$(request.auth.uid + '_' + data.lastCourseId);
+      let selection = getAfter(path).data;
+      let difference = delta(path);
+      let previousTotal = resource == null ? 0 : resource.data.totalCredits;
+      return student() && profile().get('enrollmentVersion', 0) == 1
+        && data.keys().hasOnly(['studentUid', 'semester', 'totalCredits', 'lastCourseId', 'updatedAt'])
+        && data.studentUid == request.auth.uid && id == request.auth.uid + '_' + data.semester
+        && selection.studentUid == request.auth.uid && selection.semester == data.semester
+        && difference != 0 && data.totalCredits is int && data.totalCredits >= 0 && data.totalCredits <= 20
+        && data.totalCredits == previousTotal + difference * selection.credits && data.updatedAt == request.time
+        && (resource == null || (resource.data.studentUid == data.studentUid && resource.data.semester == data.semester));
+    }
+    match /enrollment_terms/{id} {
+      allow read: if staff() || (signedIn() && (resource == null || own(resource.data.studentUid)));
+      allow create, update: if validTerm(request.resource.data, id);
+      allow delete: if false;
+    }
+    function validSlot(data) {
+      return data.capacity is int && data.capacity > 0 && data.reservedCount is int
+        && data.reservedCount >= 0 && data.reservedCount <= data.capacity
+        && data.status in ['active', 'inactive'] && data.bookingEndsAt is timestamp;
+    }
+    function reservationCounter(slotId) {
+      let path = /databases/$(database)/documents/student_reservations/$(request.auth.uid + '_' + slotId);
+      let difference = delta(path);
+      return student() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedCount'])
+        && difference != 0 && request.resource.data.reservedCount == resource.data.reservedCount + difference
+        && getAfter(path).data.studentUid == request.auth.uid && getAfter(path).data.slotId == slotId;
+    }
     match /reservation_slots/{slotId} {
-      allow read: if isAuthenticated();
-      allow create, delete: if isAdminOrStaff();
-      
-      allow update: if isAdminOrStaff() || (
-        isAuthenticated() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reservedCount']) &&
-        (
-          request.resource.data.reservedCount == resource.data.reservedCount + 1 ||
-          request.resource.data.reservedCount == resource.data.reservedCount - 1 ||
-          request.resource.data.reservedCount == resource.data.reservedCount
-        )
-      );
+      allow read: if signedIn();
+      allow create: if staff() && validSlot(request.resource.data) && request.resource.data.reservedCount == 0;
+      allow update: if validSlot(request.resource.data) && (
+        (staff() && request.resource.data.reservedCount == resource.data.reservedCount
+          && (resource.data.reservedCount == 0 || !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['title', 'category', 'date', 'time', 'bookingEndsAt']))) || reservationCounter(slotId));
+      allow delete: if staff() && resource.data.reservedCount == 0;
     }
-    
-    match /student_reservations/{resId} {
-      allow read: if isAdminOrStaff() || (isAuthenticated() && (resource == null || resource.data.studentUid == request.auth.uid));
-      
-      allow create: if isAdminOrStaff() || (
-        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
-      );
-      
-      allow update: if isAdminOrStaff() || (
-        isAuthenticated() && resource.data.studentUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
-        resource.data.status == 'active' &&
-        request.resource.data.status == 'cancelled'
-      );
-      
-      allow delete: if isAdminOrStaff();
+    function reservationLink(data, id, difference) {
+      let path = /databases/$(database)/documents/reservation_slots/$(data.slotId);
+      return student() && data.studentUid == request.auth.uid && id == data.studentUid + '_' + data.slotId
+        && getAfter(path).data.reservedCount == get(path).data.reservedCount + difference;
     }
-
-    match /requests/{reqId} {
-      allow read: if isAdminOrStaff() || (isAuthenticated() && resource.data.studentUid == request.auth.uid);
-      allow create: if isAdminOrStaff() || (
-        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
-      );
-      // Students shouldn't edit their requests after submission, admins can update status
-      allow update: if isAdminOrStaff();
-      allow delete: if isAdminOrStaff();
+    function booking(data, id) {
+      let slot = get(/databases/$(database)/documents/reservation_slots/$(data.slotId)).data;
+      return reservationLink(data, id, 1)
+        && data.keys().hasOnly(['slotId', 'studentUid', 'title', 'category', 'date', 'time', 'status', 'createdAt'])
+        && data.status == 'active' && data.createdAt == request.time
+        && slot.status == 'active' && request.time < slot.bookingEndsAt
+        && data.title == slot.title && data.category == slot.category && data.date == slot.date && data.time == slot.time;
     }
-
-    match /support_tickets/{ticketId} {
-      allow read: if isAdminOrStaff() || (isAuthenticated() && resource.data.studentUid == request.auth.uid);
-      allow create: if isAdminOrStaff() || (
-        isAuthenticated() && request.resource.data.studentUid == request.auth.uid
-      );
-      allow update: if isAdminOrStaff();
-      allow delete: if isAdminOrStaff();
-      
+    match /student_reservations/{id} {
+      allow read: if staff() || (signedIn() && (resource == null || own(resource.data.studentUid)));
+      allow create: if booking(request.resource.data, id);
+      allow update: if own(resource.data.studentUid) && (
+        (resource.data.status == 'cancelled' && booking(request.resource.data, id)) ||
+        (resource.data.status == 'active' && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && reservationLink(request.resource.data, id, -1)));
+      allow delete: if false;
+    }
+    function submission(data) {
+      return student() && data.studentUid == request.auth.uid && data.studentName == fullName()
+        && data.studentId == studentId() && text(data.title, 200) && text(data.category, 100)
+        && text(data.description, 10000) && data.createdAt == request.time
+        && data.keys().hasOnly(['title', 'category', 'description', 'studentUid', 'studentName', 'studentId', 'status', 'createdAt']);
+    }
+    match /requests/{id} {
+      allow read: if staff() || own(resource.data.studentUid);
+      allow create: if submission(request.resource.data) && request.resource.data.status == 'در انتظار بررسی';
+      allow update: if staff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'adminResponse'])
+        && request.resource.data.status in ['در انتظار بررسی', 'در حال بررسی', 'تأیید شده', 'رد شده']
+        && request.resource.data.get('adminResponse', '') is string;
+      allow delete: if staff();
+    }
+    match /support_tickets/{id} {
+      allow read: if staff() || own(resource.data.studentUid);
+      allow create: if student() && request.resource.data.studentUid == request.auth.uid
+        && request.resource.data.userId == request.auth.uid && request.resource.data.studentName == fullName()
+        && request.resource.data.studentId == studentId() && text(request.resource.data.subject, 200)
+        && text(request.resource.data.category, 100) && text(request.resource.data.message, 10000)
+        && request.resource.data.createdAt == request.time && request.resource.data.status == 'باز'
+        && request.resource.data.keys().hasOnly(['subject', 'category', 'message', 'studentUid', 'userId', 'studentName', 'studentId', 'status', 'createdAt']);
+      allow update: if staff() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['باز', 'در حال بررسی', 'بسته شده'];
+      allow delete: if false;
       match /messages/{messageId} {
-        allow read: if isAdminOrStaff() || (
-          isAuthenticated() && get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.studentUid == request.auth.uid
-        );
-        allow create: if isAdminOrStaff() || (
-          isAuthenticated() && 
-          get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.studentUid == request.auth.uid &&
-          request.resource.data.senderUid == request.auth.uid
-        );
+        function ticket() { return get(/databases/$(database)/documents/support_tickets/$(id)).data; }
+        allow read: if staff() || own(ticket().studentUid);
+        allow create: if (staff() || own(ticket().studentUid)) && ticket().status != 'بسته شده'
+          && request.resource.data.keys().hasOnly(['senderUid', 'senderName', 'senderRole', 'message', 'createdAt'])
+          && request.resource.data.senderUid == request.auth.uid && request.resource.data.senderName == fullName()
+          && request.resource.data.senderRole == profile().role && text(request.resource.data.message, 10000)
+          && request.resource.data.createdAt == request.time;
       }
     }
   }

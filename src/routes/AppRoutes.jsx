@@ -5,16 +5,18 @@ import MainLayout from "../layout/MainLayout";
 import Login from "../pages/Login";
 import Register from "../pages/Register";
 import ForgotPassword from "../pages/ForgotPassword";
-import Dashboard from "../pages/Dashboard";
-import Profile from "../pages/Profile";
-import Courses from "../pages/Courses";
-import Curriculum from "../pages/Curriculum";
-import Schedule from "../pages/Schedule";
-import Announcements from "../pages/Announcements";
-import Reservations from "../pages/Reservations";
-import Requests from "../pages/Requests";
 import NotFound from "../pages/NotFound";
-import Help from "../pages/Help";
+import LoadingSpinner from "../components/LoadingSpinner";
+
+const Dashboard = lazy(() => import("../pages/Dashboard"));
+const Profile = lazy(() => import("../pages/Profile"));
+const Courses = lazy(() => import("../pages/Courses"));
+const Curriculum = lazy(() => import("../pages/Curriculum"));
+const Schedule = lazy(() => import("../pages/Schedule"));
+const Announcements = lazy(() => import("../pages/Announcements"));
+const Reservations = lazy(() => import("../pages/Reservations"));
+const Requests = lazy(() => import("../pages/Requests"));
+const Help = lazy(() => import("../pages/Help"));
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -28,9 +30,10 @@ const ProtectedRoute = ({ children }) => {
 };
 
 export default function AppRoutes() {
-  const { currentUser } = useAuth();
+  const { currentUser, demo } = useAuth();
 
   return (
+    <Suspense fallback={<LoadingSpinner />}>
     <Routes>
       {/* Public Routes */}
       <Route
@@ -43,7 +46,7 @@ export default function AppRoutes() {
       />
       <Route
         path="/forgot-password"
-        element={currentUser ? <Navigate to="/" replace /> : <ForgotPassword />}
+        element={demo ? <Navigate to="/login" replace /> : currentUser ? <Navigate to="/" replace /> : <ForgotPassword />}
       />
 
       {/* Protected Routes */}
@@ -69,5 +72,6 @@ export default function AppRoutes() {
       {/* Fallback */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }

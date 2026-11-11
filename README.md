@@ -2,19 +2,27 @@
 
 > A modern, responsive university student portal built with React, Vite, Tailwind CSS, and Firebase.
 
-🌐 Accessing the Live Demo
+> **Validation branch:** The security repairs on this branch have not been deployed
+> to the hosted demo. Review [the security model and legacy data migration gate](docs/SECURITY-MIGRATION.md)
+> before merging or deploying; the changed client and rules must be released together.
 
-Important for users in Iran: Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
+## Try the standalone demo
 
-If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
+**[Open the published demo](https://university-demo.mohammadghorbani-dev.ir/)**
 
-## 🌐 Live Demo
+Try the sign-in form with the supplied sample account, register a sample student, or open a dashboard using the Student, Staff, and Admin shortcuts. Try enrolling in a course, booking a study room, or submitting a request and answering it as staff. The demo uses synthetic data in the current browser tab. Reset restores the starting scenario and clears locally registered accounts.
 
-**https://university-portal-demo.web.app**
+```sh
+npm ci
+npm run build:demo
+npm run preview:demo
+```
 
-> **Important for users in Iran:** Due to network restrictions affecting access to some Google/Firebase services from Iranian IP addresses, the Live Demo may not work correctly without a VPN or another network connection that can access these services.
->
-> If the application does not load, authentication fails, or Firebase data cannot be retrieved, please enable a VPN and reload the page before testing the demo.
+Open `http://127.0.0.1:3010`. See the [demo hosting guide](docs/DEMO.md) for the Cloudflare Pages settings. The separate [Firebase deployment](https://university-portal-demo.web.app/) uses the live backend.
+
+![Student course selection in the standalone demo](docs/images/demo-student-desktop.png)
+
+[Demo sign-in](docs/images/demo-login.png) · [Demo registration](docs/images/demo-register.png) · [Staff requests](docs/images/demo-staff-desktop.png) · [Mobile dashboard](docs/images/demo-student-mobile.png)
 
 ## 📋 Overview
 
@@ -60,7 +68,6 @@ This project was developed as a portfolio/academic project with an emphasis on:
 * Reservation management
 * Request management
 * Support management
-* User management
 * Administrative statistics
 * Shared responsive interface with role-aware navigation
 
@@ -105,7 +112,7 @@ Key security measures include:
 ### Testing & Tooling
 
 * Playwright
-* ESLint
+* TypeScript configuration check (`tsc --noEmit`; JavaScript `checkJs` is not enabled)
 * Vite production build
 
 ## 🎨 UI & UX
